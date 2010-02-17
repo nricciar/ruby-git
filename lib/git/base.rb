@@ -67,7 +67,24 @@ module Git
       @repository = options[:repository] ? Git::Repository.new(options[:repository]) : nil 
       @index = options[:index] ? Git::Index.new(options[:index], false) : nil
     end
-  
+ 
+    # updates the info/refs file for dumb servers
+    def update_server_info
+      refs = {}
+      info = ''
+      files = Dir.glob(File.join(@repository.path,"refs/**/**"))
+      for file in files
+        unless File.directory?(file)
+          short_dir = $1 if file =~ /.git\/(.+)$/
+          refs[short_dir] = File.open(file) { |f| f.read }.chomp
+        end
+      end
+      refs.each_pair do |dir,md5|
+        refs[dir] = refs[$1] if md5 =~ /^ref:\s+(.*)/
+        info += "#{refs[dir]}\t#{dir}\n"
+      end
+      File.open(File.join(@repository.path,'info/refs'),'w') { |f| f.write(info) }
+    end 
   
     # returns a reference to the working directory
     #  @git.dir.path
